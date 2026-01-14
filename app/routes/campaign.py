@@ -363,7 +363,7 @@ async def generate_campaign_videos(
     business_name: Optional[str] = None,
     phone_number: Optional[str] = None,
     website: Optional[str] = None,
-    only_scene: Optional[int] = None,
+    
     db: Session = Depends(get_db)
 ):
     """
