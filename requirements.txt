@@ -1,0 +1,52 @@
+# =========================
+# Core Framework
+# =========================
+fastapi
+uvicorn[standard]
+python-multipart
+
+# =========================
+# API Clients
+# =========================
+openai
+httpx
+requests
+
+# =========================
+# AWS S3
+# =========================
+boto3
+
+# =========================
+# Video Processing
+# =========================
+ffmpeg-python
+pillow
+
+# =========================
+# Environment
+# =========================
+python-dotenv
+
+# =========================
+# Streamlit (demo UI)
+# =========================
+streamlit
+
+# =========================
+# Utilities
+# =========================
+pydantic
+sqlalchemy
+psycopg2-binary
+# python-jose[cryptography]   # uncomment ONLY if auth/JWT is needed
+# passlib[bcrypt]             # uncomment ONLY if passwords are needed
+
+# =========================
+# Google Gemini (Nano Banana + VEO 3)
+# =========================
+google-generativeai>=0.8.0
+google-cloud-aiplatform>=1.40.0
+google-auth>=2.25.0
+                        
+                        
