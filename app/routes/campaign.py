@@ -408,21 +408,10 @@ async def generate_campaign_videos(
                 s for s in scenes if s.selected_image_url
             ]
             
-            # =====================================
-            # DEBUG MODE — GENERATE ONLY ONE SCENE
-            # =====================================
-            if only_scene is not None:
-                scenes_with_images = [
-                    s for s in scenes_with_images
-                    if s.scene_number == only_scene
-                ]
-
-                if not scenes_with_images:
-                    raise HTTPException(
-                        400, f"Scene {only_scene} not found or has no selected image"
-                    )
-
-                print(f"🧪 DEBUG MODE: Generating ONLY Scene {only_scene}")
+            scenes_with_images = [
+                s for s in scenes_with_images
+                if s.scene_number <= campaign.num_scenes
+            ]
 
 
             if not scenes_with_images:
