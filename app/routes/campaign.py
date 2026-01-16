@@ -2,48 +2,23 @@ from fastapi import APIRouter, Depends, HTTPException, status
 import asyncio
 import os
 import boto3
-# from platformdirs import user_music_path
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.schemas.campaign_schemas import (
-    CampaignCreateRequest,
-    CampaignScriptResponse,
-    SceneScript,
-    ImageGenerationRequest,
-    ImageGenerationResponse,
-    SceneImageResponse,
-    ImageSelectionRequest,
-    VideoGenerationRequest,
-    SceneVideoResponse,
-    VideoGenerationResponse,
-)
-from app.services.script_generator import script_generator
+from app.schemas.campaign_schemas import SceneScript
 from app.models.campaign import Campaign, CampaignScene
-
 from app.services.video_merger import video_merger
-from app.services.tts_script_generator import tts_script_generator
 from app.services.elevenlabs_tts_service import elevenlabs_tts_service
-
-
-
-
-# ========================================
-# NEW SERVICES (ACTIVE - GOOGLE GEMINI)
-# ========================================
 from app.services.nano_banana_generator import nano_banana_generator
 from app.services.veo3_video_generator import veo3_video_generator
 from app.services.beauty_prompt_generator import beauty_prompt_generator
-
-
 import uuid
-from datetime import datetime
-from typing import Optional, Dict
+from typing import Optional
 
 DEMO_MODE = False
 
-# ======================================
+
 # VEO-SAFE MOTION PRESETS (DO NOT EDIT)
-# ======================================
+
 
 VEO_MOTION_PRESETS = {
     "brand": (
@@ -78,11 +53,12 @@ LOCKED_OUTFIT_MAP = {
     "hair shop": "cream white knit sweater, long sleeves, minimal design, no logos",
     "spa": "white spa robe, clean texture, no patterns",
     "spa center": "white spa robe, clean texture, no patterns",}
+
 router = APIRouter(prefix="/api/campaign", tags=["Campaign"])
 
-# ===============================
+
 # NARRATION HELPERS
-# ===============================
+
 def build_narration_from_overlay(text_overlay: dict) -> str:
     if text_overlay is None:
         return ""
@@ -123,16 +99,14 @@ def upload_to_s3(local_path: str) -> str:
     filename = os.path.basename(local_path)
     key = f"campaigns/videos/{filename}"
 
-    # Use upload_file (sync) since this is called from sync context
     s3_client.upload_file(local_path, s3_bucket, key, ExtraArgs={"ContentType": "video/mp4"})
 
     if s3_region:
         return f"https://{s3_bucket}.s3.{s3_region}.amazonaws.com/{key}"
     return f"https://{s3_bucket}.s3.amazonaws.com/{key}"
 
-# put this near the top of campaign.py after imports
 async def generate_video_with_retries(
-    generator,  # veo3_video_generator
+    generator,  
     *,
     scene_image_url,
     motion_prompt,
@@ -171,106 +145,21 @@ async def generate_video_with_retries(
                 if attempt < retries:
                     wait = base_delay * (2 ** (attempt - 1))
                     print(
-                        f"⚠️ Attempt {attempt} failed with retryable error, "
+                        f" Attempt {attempt} failed with retryable error, "
                         f"sleeping {wait}s and retrying..."
                     )
                     await asyncio.sleep(wait)
                     continue
 
-            print(f"❌ generate_video_with_retries failed (attempt {attempt}): {e}")
+            print(f" generate_video_with_retries failed (attempt {attempt}): {e}")
             raise
 
     raise last_exc
 
 
 
+# ENDPOINT 1: Get Campaign Details
 
-# ============================================================================
-# ENDPOINT 1: Generate Script (GPT-4 - UNCHANGED)
-# ============================================================================
-@router.post("/generate_script", response_model=CampaignScriptResponse)
-async def generate_campaign_script(
-    request: CampaignCreateRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Generate campaign script with scene descriptions using GPT-4
-    This is STEP 1 of the campaign creation process.
-    """
-    print("\n" + "="*60)
-    print("🎬 CAMPAIGN SCRIPT GENERATION REQUEST")
-    print("="*60)
-    print(f"Product Image: {request.product_image_url[:50]}...")
-    print(f"Character Image: {request.character_image_url[:50] if request.character_image_url else 'None'}")
-    print(f"User Prompt: {request.user_prompt}")
-    print(f"Number of Scenes: {request.num_scenes}")
-    print(f"Product Type: {request.product_type}")
-    print("="*60 + "\n")
-
-    try:
-        # Step 1: Generate campaign script using GPT-4
-        print("🤖 Calling GPT-4 for script generation...")
-        script_result = await script_generator.generate_campaign_script(
-            product_description=request.user_prompt,
-            has_character=request.character_image_url is not None,
-            num_scenes=request.num_scenes
-        )
-
-        # Step 2: Create campaign record in database
-        campaign_id = f"camp_{uuid.uuid4().hex[:12]}"
-        campaign = Campaign(
-            id=campaign_id,
-            user_id=None,  # No auth for now
-            product_image_url=request.product_image_url,
-            character_image_url=request.character_image_url,
-            user_prompt=request.user_prompt,
-            num_scenes=request.num_scenes,
-            product_type=request.product_type,
-            campaign_theme=script_result['campaign_theme'],
-            scene_scripts=script_result['scenes'],
-            status="scripts_generated"
-        )
-        db.add(campaign)
-
-        # Step 3: Create individual scene records
-        for scene_data in script_result['scenes']:
-            scene = CampaignScene(
-                id=f"scene_{uuid.uuid4().hex[:12]}",
-                campaign_id=campaign_id,
-                scene_number=scene_data['scene_number'],
-                scene_title=scene_data['title'],
-                visual_prompt=scene_data['visual_prompt'],
-                camera_movement=scene_data['camera_movement'],
-                lighting=scene_data['lighting'],
-                caption_text=scene_data['caption_text'],
-                hashtags=scene_data['hashtags'],
-                video_duration=scene_data.get('duration', 8),
-                status="pending"
-            )
-            db.add(scene)
-
-        db.commit()
-
-        print(f"✅ Campaign created: {campaign_id}")
-        print(f"✅ {len(script_result['scenes'])} scenes saved\n")
-
-        return CampaignScriptResponse(
-            campaign_id=campaign_id,
-            campaign_theme=script_result['campaign_theme'],
-            scenes=[SceneScript(**scene) for scene in script_result['scenes']],
-            status="scripts_generated",
-            message=f"Campaign scripts generated! Use campaign_id: {campaign_id}"
-        )
-
-    except Exception as e:
-        print(f"❌ Script generation failed: {str(e)}\n")
-        db.rollback()
-        raise HTTPException(500, f"Script generation failed: {str(e)}")
-
-
-# ============================================================================
-# ENDPOINT 2: Get Campaign Details
-# ============================================================================
 @router.get("/campaign/{campaign_id}")
 async def get_campaign(campaign_id: str, db: Session = Depends(get_db)):
     """Get campaign details by ID"""
@@ -309,53 +198,7 @@ async def get_campaign(campaign_id: str, db: Session = Depends(get_db)):
 
 
 
-# ============================================================================
-# ENDPOINT 4: Select Image
-# ============================================================================
-@router.post("/select_image")
-async def select_scene_image(
-    request: ImageSelectionRequest,
-    db: Session = Depends(get_db)
-):
-    """Select which image variation to use for video generation"""
-    print(f"\n✅ Image Selection: Scene {request.scene_number}")
-    print(f"   Campaign: {request.campaign_id}")
-    print(f"   Selected: ...{request.selected_image_url[-60:]}")
-
-    scene = db.query(CampaignScene).filter(
-        CampaignScene.campaign_id == request.campaign_id,
-        CampaignScene.scene_number == request.scene_number
-    ).first()
-
-    if not scene:
-        raise HTTPException(404, f"Scene {request.scene_number} not found")
-
-    if not scene.generated_images:
-        raise HTTPException(400, "No generated images available")
-
-    if request.selected_image_url not in scene.generated_images:
-        raise HTTPException(400, "Selected image not found in generated images")
-
-    scene.selected_image_url = request.selected_image_url
-    scene.status = "image_selected"
-    db.commit()
-
-    print(f"✅ Selection saved!\n")
-    return {
-        "status": "success",
-        "campaign_id": request.campaign_id,
-        "scene_number": request.scene_number,
-        "selected_image_url": request.selected_image_url,
-        "message": f"Image selected for scene {request.scene_number}"
-    }
-
-
-
-
-# ============================================================================
-# ENDPOINT 6: NEW Generate Videos (VEO 3 - ACTIVE)
-# ============================================================================
-from app.services.veo3_video_generator import veo3_video_generator
+# ENDPOINT 2: NEW Generate Videos (VEO 3 - ACTIVE)
 
 @router.post("/generate_campaign_videos/{campaign_id}")
 async def generate_campaign_videos(
@@ -367,12 +210,12 @@ async def generate_campaign_videos(
     db: Session = Depends(get_db)
 ):
     """
-    ✅ Generate VEO 3.1 videos with text overlays for campaign
+     Generate VEO 3.1 videos with text overlays for campaign
     - 8-second professional videos
     - Text overlays with captions
     - Character consistency
     - Native audio
-    - 🔥 Automatically merges all scenes into ONE final ad
+    -  Automatically merges all scenes into ONE final ad
     """
     
     print("\n" + "="*80)
@@ -384,9 +227,9 @@ async def generate_campaign_videos(
     print("="*80)
     
     try:
-            # ================================
+            
             # GET CAMPAIGN
-            # ================================
+            
             campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
             if not campaign:
                 raise HTTPException(404, "Campaign not found")
@@ -394,16 +237,16 @@ async def generate_campaign_videos(
             if not campaign.character_image_url:
                 raise HTTPException(400, "No character reference")
 
-            # ================================
+            
             # GET SCENES
-            # ================================
+            
             scenes = db.query(CampaignScene).filter(
                 CampaignScene.campaign_id == campaign_id
             ).order_by(CampaignScene.scene_number).all()
             
-            # ================================
+            
             # HARD VALIDATION (DO NOT REMOVE)
-            # ================================
+            
             scenes_with_images = [
                 s for s in scenes if s.selected_image_url
             ]
@@ -428,8 +271,8 @@ async def generate_campaign_videos(
             if not scenes:
                 raise HTTPException(400, "No scenes found")
 
-            print(f"✅ Found {len(scenes)} scenes")
-            print(f"✅ Character reference: {campaign.character_image_url[:60]}...")
+            print(f" Found {len(scenes)} scenes")
+            print(f" Character reference: {campaign.character_image_url[:60]}...")
 
             business_info = {
                 "name": business_name,
@@ -437,9 +280,9 @@ async def generate_campaign_videos(
                 "website": website
             } if business_name else None
 
-            # ================================
+            
             # SCENE CONFIGS (UNCHANGED)
-            # ================================
+           
             
             scene_configs = {
                 1: {
@@ -530,33 +373,33 @@ async def generate_campaign_videos(
                 if not scene.selected_image_url:
                     continue
 
-                print(f"🎬 Generating Scene {scene.scene_number}")
+                print(f" Generating Scene {scene.scene_number}")
 
                 scene_config = scene_configs.get(scene.scene_number, scene_configs[1])
 
-                # ==========================
-                # FIX 1 — DETERMINE ASPECT RATIO (VEO-SAFE)
-                # ==========================
-                aspect_ratio = "16:9"  # default
+                
+                # DETERMINE ASPECT RATIO (VEO-SAFE)
+                
+                aspect_ratio = "16:9"  
 
                 prompt_text = (scene.visual_prompt or "").lower()
 
                 if "9:16" in prompt_text or "portrait" in prompt_text:
                     aspect_ratio = "9:16"
 
-                # ❌ DO NOT ALLOW 1:1 or 3:4 INTO VEO
+                
                 if aspect_ratio not in ["16:9", "9:16"]:
                     print(
-                        f"⏭️ Skipping Scene {scene.scene_number} — "
+                        f"⏭ Skipping Scene {scene.scene_number} — "
                         f"unsupported aspect ratio"
                     )
                     continue
 
-                print(f"📐 Scene {scene.scene_number} forced aspect ratio → {aspect_ratio}")
+                print(f" Scene {scene.scene_number} forced aspect ratio → {aspect_ratio}")
 
-                # ==========================
+                
                 # FIX 2 — RESOLVE VEO-SAFE MOTION (DO NOT TRUST scene_config)
-                # ==========================
+                
                 role = scene_config.get("role", "brand")
 
                 motion_prompt = VEO_MOTION_PRESETS.get(
@@ -566,12 +409,12 @@ async def generate_campaign_videos(
 
                 text_overlays = scene_config.get("text", {})
 
-                # 🔥 Reaction scenes must NOT carry text
+                #  Reaction scenes must NOT carry text
                 if role == "reaction":
                     text_overlays = {}
 
-                print(f"🎭 Scene role → {role}")
-                print(f"📝 Motion prompt → {motion_prompt}")
+                print(f" Scene role → {role}")
+                print(f" Motion prompt → {motion_prompt}")
 
                 # ==========================
                 # GENERATE VIDEO (VEO)
@@ -592,7 +435,7 @@ async def generate_campaign_videos(
 
                 # -------- Scene-specific narration --------
                 narration_text = build_scene_narration(scene_config, business_info) or ""
-                print(f"🎙 Scene {scene.scene_number} narration:", narration_text)
+                print(f" Scene {scene.scene_number} narration:", narration_text)
 
                 voice_path = elevenlabs_tts_service.generate_voice(narration_text)
                 scene_voice_paths.append(voice_path)
@@ -615,36 +458,36 @@ async def generate_campaign_videos(
                 raise HTTPException(400, "No videos generated to merge")
 
 
-            # ================================
+            
             # STEP 2 — FINAL VIDEO PIPELINE
-            # ================================
-            print("🎬 Creating final advertisement")
+            
+            print(" Creating final advertisement")
 
             final_path = await asyncio.to_thread(
                 video_merger.process_full_pipeline,
                 scene_video_urls=scene_video_urls,
-                voice_paths=scene_voice_paths,   # ✅ CORRECT ARG NAME
+                voice_paths=scene_voice_paths,   
                 campaign_id=campaign_id,
                 output_name="final_ad.mp4",
                 background_music=None
             )
 
 
-            # ================================
+            
             # STEP 3 — UPLOAD FINAL VIDEO
-            # ================================
+            
             final_s3_url = await asyncio.to_thread(upload_to_s3, final_path)
 
             campaign.final_video_url = final_s3_url
             campaign.status = "videos_generated"
             db.commit()
 
-            print("🎉 FINAL VIDEO READY:", final_s3_url)
+            print(" FINAL VIDEO READY:", final_s3_url)
 
 
-            # ================================
+           
             # RETURN (UI NEEDS ONLY THIS)
-            # ================================
+           
             return {
                 "final_merged_video": final_s3_url
             }
@@ -653,7 +496,7 @@ async def generate_campaign_videos(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"\n❌ ERROR: {str(e)}\n")
+        print(f"\n ERROR: {str(e)}\n")
         db.rollback()
         raise HTTPException(500, f"Video generation failed: {str(e)}")
 
@@ -661,9 +504,9 @@ async def generate_campaign_videos(
 
 
 
-# ============================================================================
+
 # ENDPOINT 8: NEW Beauty Campaign (NANO BANANA + VEO 3 - ACTIVE)
-# ============================================================================
+
 @router.post("/generate_beauty_campaign")
 async def generate_beauty_campaign(
     
@@ -680,18 +523,18 @@ async def generate_beauty_campaign(
 ):
       
       
-    # =========================================================
-    # 🔒 HARD OUTFIT LOCK (PERMANENT CONSISTENCY)
-    # =========================================================
+   
+    #  OUTFIT LOCK 
+  
     business_key = business_type.lower().strip()  
     
     locked_outfit = LOCKED_OUTFIT_MAP.get(
         business_key,
             "neutral elegant professional outfit, no patterns, no logos"
     )
-    print(f"🔒 Locked outfit for all scenes: {locked_outfit}")
+    print(f" Locked outfit for all scenes: {locked_outfit}")
     """
-    ✅ PROFESSIONAL 5-SCENE CAMPAIGNS
+     PROFESSIONAL 5-SCENE CAMPAIGNS
     Supports: Nail Shop, Hair Salon, Spa
     Uses: Google Best Practices for prompting
     """
@@ -699,7 +542,7 @@ async def generate_beauty_campaign(
     campaign_id = f"camp_{uuid.uuid4().hex[:12]}"
     
     print("\n" + "="*80)
-    print(f"🌟 {business_type.upper()}: 5-Scene Professional Campaign")
+    print(f" {business_type.upper()}: 5-Scene Professional Campaign")
     print("="*80)
     print(f"Theme: {campaign_theme}")
     print(f"Character: {character_gender}, {character_age}, {character_ethnicity}")
@@ -708,7 +551,7 @@ async def generate_beauty_campaign(
     
     try:
         # STEP 1: Generate character
-        print("\n👤 STEP 1: Generate character reference...")
+        print("\n STEP 1: Generate character reference...")
         character_url = await nano_banana_generator.generate_character(
             campaign_id=campaign_id,
             age=character_age,
@@ -716,28 +559,11 @@ async def generate_beauty_campaign(
             ethnicity=character_ethnicity,
             outfit_prompt=locked_outfit        )
         
+        
         # STEP 2: Get scene definitions based on business type
-        # STEP 2: Get scene definitions based on business type
-        print(f"\n📝 STEP 2: Creating {business_type} story...")
+        print(f"\n STEP 2: Creating {business_type} story...")
 
-        # # =================================================================
-        # # 🔒 OUTFIT LOCKING (same outfit in ALL scenes, theme-based)
-        # # =================================================================
-        # THEME_OUTFITS = {
-        #     "Christmas": "cozy red winter sweater with soft festive texture",
-        #     "Valentine's Day": "soft pink elegant top with minimal design",
-        #     "Summer": "light breathable pastel summer top",
-        #     "New Year": "stylish minimal party outfit with subtle shine",
-        #     "Mother's Day": "warm pastel casual top",
-        #     "Spring": "light floral pastel blouse",
-        #     "Holiday Season": "cream-beige warm festive outfit"
-        # }
-
-        # outfit = THEME_OUTFITS.get(campaign_theme, "neutral elegant outfit")
-
-        # =================================================================
-        # 🎨 THEME DECOR (dynamic — will apply correctly for all themes)
-        # =================================================================
+ 
         
         theme_decor = f"{campaign_theme} themed decorations appropriate for the business environment"
 
@@ -812,9 +638,9 @@ async def generate_beauty_campaign(
                 }
             ]
             scenes = all_scenes[:num_scenes]
-            # ==================================================================
-# 🔥 APPLY NANO + VEO OPTIMIZED PROMPTS (BeautyPromptGenerator)
-# ==================================================================
+           
+            #  APPLY NANO + VEO OPTIMIZED PROMPTS (BeautyPromptGenerator)
+
             updated_scenes = []
             for scene_data in scenes:
 
@@ -823,9 +649,9 @@ async def generate_beauty_campaign(
                     scene_data=scene_data,
                     business_type=business_type,
                     campaign_theme=campaign_theme,
-                    character_image_url=None,        # we add reference later in Nano generator
+                    character_image_url=None,        
                     aspect_ratio="16:9",
-                    # default; UI can override later
+                   
                 )
 
                 # override the prompt with the optimized one
@@ -841,9 +667,9 @@ async def generate_beauty_campaign(
 
                 updated_scenes.append(scene_data)
 
-            # replace old scenes array
+           
             scenes = updated_scenes
-# ==================================================================
+
 
 
         elif business_type.lower() in ["hair salon", "hair shop"]:
@@ -910,9 +736,9 @@ async def generate_beauty_campaign(
                 }
             ]
             scenes = all_scenes[:num_scenes]
-            # ==================================================================
-# 🔥 APPLY NANO + VEO OPTIMIZED PROMPTS (BeautyPromptGenerator)
-# ==================================================================
+           
+            #  APPLY NANO + VEO OPTIMIZED PROMPTS (BeautyPromptGenerator)
+
             updated_scenes = []
             for scene_data in scenes:
 
@@ -921,10 +747,10 @@ async def generate_beauty_campaign(
                     scene_data=scene_data,
                     business_type=business_type,
                     campaign_theme=campaign_theme,
-                    character_image_url=None,        # we add reference later in Nano generator
-                    aspect_ratio="16:9"              # default; UI can override later
+                    character_image_url=None,       
+                    aspect_ratio="16:9"              
                 )
-
+ 
                 # override the prompt with the optimized one
                 scene_data["prompt"] = (
     f"IMPORTANT: The environment MUST stay the SAME across all scenes. "
@@ -936,9 +762,9 @@ async def generate_beauty_campaign(
 
                 updated_scenes.append(scene_data)
 
-            # replace old scenes array
+           
             scenes = updated_scenes
-            # ==================================================================
+            
 
 
         elif business_type.lower() in ["spa", "spa center"]:
@@ -1002,9 +828,9 @@ async def generate_beauty_campaign(
                 }
             ]
             scenes = all_scenes[:num_scenes]
-            # ==================================================================
-# 🔥 APPLY NANO + VEO OPTIMIZED PROMPTS (BeautyPromptGenerator)
-# ==================================================================
+            
+            #  APPLY NANO + VEO OPTIMIZED PROMPTS (BeautyPromptGenerator)
+
             updated_scenes = []
             for scene_data in scenes:
 
@@ -1013,8 +839,8 @@ async def generate_beauty_campaign(
                     scene_data=scene_data,
                     business_type=business_type,
                     campaign_theme=campaign_theme,
-                    character_image_url=None,        # we add reference later in Nano generator
-                    aspect_ratio="16:9"              # default; UI can override later
+                    character_image_url=None,       
+                    aspect_ratio="16:9"              
                 )
 
                 # override the prompt with the optimized one
@@ -1028,18 +854,18 @@ async def generate_beauty_campaign(
 
                 updated_scenes.append(scene_data)
 
-            # replace old scenes array
+            
             scenes = updated_scenes
-            # ==================================================================
+            
 
         else:
             raise HTTPException(400, f"Business type '{business_type}' not supported")
-# ---------- end replacement ----------
+
 
 
         
         
-        # Save campaign to database
+        # Saving campaign to database
         campaign = Campaign(
             id=campaign_id,
             user_id=None,
@@ -1054,7 +880,7 @@ async def generate_beauty_campaign(
         )
         db.add(campaign)
         
-        # Save individual scenes
+        # Saving individual scenes
         for scene_data in scenes:
             scene = CampaignScene(
                 id=f"scene_{uuid.uuid4().hex[:12]}",
@@ -1074,7 +900,7 @@ async def generate_beauty_campaign(
         db.commit()
         
         # STEP 3: Generate all scene images
-        print(f"\n🎨 STEP 3: Generating 5 professional scenes...")
+        print(f"\n STEP 3: Generating 5 professional scenes...")
         
         all_scenes_data = []
         total_images = 0
@@ -1082,8 +908,8 @@ async def generate_beauty_campaign(
         for scene_data in scenes:
             scene_num = scene_data["scene_number"]
             print(f"\n{'='*70}")
-            print(f"📸 Scene {scene_num}/5: {scene_data['title']}")
-            print(f"🎥 Camera: {scene_data['camera_angle']}")
+            print(f" Scene {scene_num}/5: {scene_data['title']}")
+            print(f" Camera: {scene_data['camera_angle']}")
             print(f"{'='*70}")
             
             try:
@@ -1119,10 +945,10 @@ async def generate_beauty_campaign(
                 })
                 
                 total_images += 1
-                print(f"✅ Scene {scene_num} complete!")
+                print(f" Scene {scene_num} complete!")
                 
             except Exception as e:
-                print(f"❌ Scene {scene_num} failed: {e}")
+                print(f" Scene {scene_num} failed: {e}")
                 all_scenes_data.append({
                     "scene_number": scene_num,
                     "title": scene_data["title"],
@@ -1135,7 +961,7 @@ async def generate_beauty_campaign(
         db.commit()
         
         print(f"\n{'='*80}")
-        print(f"✅ {business_type.upper()} CAMPAIGN COMPLETE!")
+        print(f" {business_type.upper()} CAMPAIGN COMPLETE!")
         print(f"{'='*80}")
         print(f"Campaign ID: {campaign_id}")
         print(f"Total Images: {total_images}/5")
@@ -1159,7 +985,7 @@ async def generate_beauty_campaign(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"\n❌ CRITICAL ERROR: {str(e)}\n")
+        print(f"\n CRITICAL ERROR: {str(e)}\n")
         
         raise HTTPException(500, f"Campaign failed: {str(e)}")
 

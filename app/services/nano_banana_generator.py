@@ -42,7 +42,7 @@ class NanoBananaGenerator:
             aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
         )
 
-        print("🍌 Nano Banana (FACE + OUTFIT LOCKED) initialized")
+        print(" Nano Banana (FACE + OUTFIT LOCKED) initialized")
 
     # -------------------------------------------------------------
     # Utility: Convert Gemini output → PIL image
@@ -74,23 +74,23 @@ class NanoBananaGenerator:
             return f"https://{self.s3_bucket}.s3.{self.s3_region}.amazonaws.com/{key}"
         return f"https://{self.s3_bucket}.s3.amazonaws.com/{key}"
 
-    # -------------------------------------------------------------
+
     # CHARACTER GENERATION (MASTER REFERENCE)
-    # -------------------------------------------------------------
+ 
     async def generate_character(
         self,
         campaign_id: str,
         age: str,
         gender: str,
         ethnicity: str,
-        outfit_prompt: str,   # 🔒 REQUIRED
+        outfit_prompt: str,   
     ) -> str:
         print("\n================ CHARACTER REFERENCE =================")
 
         prompt = (
             "CRITICAL CHARACTER + OUTFIT CANONICAL REFERENCE IMAGE.\n\n"
 
-            f"Professional ultra-realistic portrait photo of a {age} {gender} "
+            f"Cinematic medium shot (Cowboy shot) of a {age} {gender} "
             f"with {ethnicity} features.\n\n"
 
             "OUTFIT — ABSOLUTELY LOCKED:\n"
@@ -100,13 +100,13 @@ class NanoBananaGenerator:
             "No accessories, no jewelry, no patterns, no logos.\n\n"
 
             "POSE & FRAMING:\n"
-            "- Face centered and fully visible\n"
-            "- Upper torso visible\n"
+            "- Subject centered with breathing room on sides\n"
+            "- Thighs-up visible (Cowboy shot)\n" 
             "- Neutral relaxed posture\n\n"
 
             "LIGHTING & STYLE:\n"
             "- Soft even studio lighting\n"
-            "- Neutral background\n"
+            "- Neutral background (blurred studio depth)\n"
             "- Photorealistic, real human\n"
             "- No stylization, no CGI, no AI look\n"
         )
@@ -115,7 +115,12 @@ class NanoBananaGenerator:
             self.client.models.generate_content,
             model=self.model_name,
             contents=[prompt],
-            config=types.GenerateContentConfig(response_modalities=["image"]),
+            config=types.GenerateContentConfig(response_modalities=["image"],
+            image_config=types.ImageConfig(
+            aspect_ratio="16:9")                                   
+                                               
+                                               
+                                               ),
         )
 
         img = None
@@ -125,7 +130,7 @@ class NanoBananaGenerator:
                 break
 
         if img is None:
-            raise Exception("❌ Character image generation failed")
+            raise Exception("Character image generation failed")
 
         return await self._upload(
             campaign_id,
@@ -208,7 +213,7 @@ class NanoBananaGenerator:
         # --------------------------------------------------
         contents = [prompt_text, face_img]
 
-        # 🔒 OUTFIT LOCK — THIS IS THE FIX
+        #  OUTFIT LOCK — THIS IS THE FIX
         if outfit_img:
             contents.append(outfit_img)
 
@@ -216,9 +221,12 @@ class NanoBananaGenerator:
             self.client.models.generate_content,
             model=self.model_name,
             contents=contents,
-            config=types.GenerateContentConfig(response_modalities=["image"]),
+            config=types.GenerateContentConfig(response_modalities=["image"],
+            image_config=types.ImageConfig(
+            aspect_ratio="16:9" 
         )
-
+    ),
+)
         # --------------------------------------------------
         # 4. Extract image
         # --------------------------------------------------

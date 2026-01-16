@@ -15,9 +15,9 @@ class VideoMerger:
     - No image persistence
     """
 
-    # ==========================================================
-    # 🧹 SAFE DELETE
-    # ==========================================================
+  
+    #  SAFE DELETE
+   
     def _safe_remove(self, path: Optional[str]):
         try:
             if path and os.path.exists(path):
@@ -25,9 +25,9 @@ class VideoMerger:
         except Exception:
             pass
 
-    # ==========================================================
-    # ⏱ GET VIDEO DURATION
-    # ==========================================================
+
+    #  GET VIDEO DURATION
+  
     def get_video_duration(self, video_path: str) -> float:
         result = subprocess.run(
             [
@@ -42,9 +42,9 @@ class VideoMerger:
         )
         return float(result.stdout.strip())
 
-    # ==========================================================
-    # 🎙 FIT AUDIO TO VIDEO DURATION
-    # ==========================================================
+   
+    #  FIT AUDIO TO VIDEO DURATION
+
     def fit_audio_to_duration(self, audio_path: str, duration: float) -> str:
         temp_dir = tempfile.gettempdir()
         output = os.path.join(temp_dir, f"fit_{os.path.basename(audio_path)}")
@@ -62,9 +62,9 @@ class VideoMerger:
         )
         return output
 
-    # ==========================================================
-    # ⬇️ DOWNLOAD VIDEO (URL → TEMP FILE)
-    # ==========================================================
+  
+    #  DOWNLOAD VIDEO (URL → TEMP FILE)
+   
     def _download_video(self, source: str, index: int) -> str:
         temp_dir = tempfile.gettempdir()
         local_path = os.path.join(temp_dir, f"scene_{index}.mp4")
@@ -82,9 +82,9 @@ class VideoMerger:
 
         return local_path
 
-    # ==========================================================
-    # 🔇 REMOVE ORIGINAL AUDIO
-    # ==========================================================
+ 
+    #  REMOVE ORIGINAL AUDIO
+  
     def strip_audio(self, input_video: str) -> str:
         output = os.path.join(
             tempfile.gettempdir(),
@@ -98,9 +98,8 @@ class VideoMerger:
         )
         return output
 
-    # ==========================================================
-    # 🔊 ADD VOICE (OPTIONAL MUSIC)
-    # ==========================================================
+    #  ADD VOICE (OPTIONAL MUSIC)
+
     def add_voice_and_music(
         self,
         silent_video: str,
@@ -147,9 +146,9 @@ class VideoMerger:
         subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return output
 
-    # ==========================================================
-    # 🎞 APPLY FADE
-    # ==========================================================
+
+    #  APPLY FADE
+ 
     def _fade_video(self, input_path: str, output_path: str, fade_in: bool, fade_out: bool, duration=0.7):
         total_dur = self.get_video_duration(input_path)
 
@@ -173,9 +172,9 @@ class VideoMerger:
             stderr=subprocess.PIPE
         )
 
-    # ==========================================================
-    # 🎬 MERGE ALL SCENES
-    # ==========================================================
+
+    #  MERGE ALL SCENES
+
     def merge_videos(self, video_paths: List[str], campaign_id: str, output_name: str) -> str:
         temp_dir = tempfile.gettempdir()
         processed = []
@@ -204,9 +203,9 @@ class VideoMerger:
 
         return output
 
-    # ==========================================================
-    # 🚀 FULL PIPELINE (AUTO CLEANUP)
-    # ==========================================================
+  
+    # FULL PIPELINE (AUTO CLEANUP)
+
     def process_full_pipeline(
         self,
         scene_video_urls: List[str],
@@ -243,10 +242,10 @@ class VideoMerger:
             return merged
 
         finally:
-            # 🔥 GUARANTEED CLEANUP
+  
             for f in temp_files:
                 self._safe_remove(f)
 
 
-# Singleton instance
+
 video_merger = VideoMerger()

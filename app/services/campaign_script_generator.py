@@ -11,7 +11,7 @@ class BeautyPromptGenerator:
     """
 
     def __init__(self):
-        print("💅 Beauty Prompt Generator initialized")
+        print("Beauty Prompt Generator initialized")
 
     def generate_scene_prompt(
         self,
@@ -36,9 +36,9 @@ class BeautyPromptGenerator:
         scene_num = scene_data["scene_number"]
         mood = scene_data["mood"]
 
-        # ----------------------------------------------------------
-        # VEO-SAFE SCENE PROMPTS (Final Approved Version)
-        # ----------------------------------------------------------
+        
+        # VEO-SAFE SCENE PROMPTS
+       
         scene_prompts = {
             1: (
                 "Wide shot of the woman entering a modern nail salon. "
@@ -79,9 +79,9 @@ class BeautyPromptGenerator:
         # Select prompt for the scene
         veo_scene_description = scene_prompts.get(scene_num)
 
-        # ----------------------------------------------------------
+        
         # Base prompt (optimized for Gemini)
-        # ----------------------------------------------------------
+    
         final_prompt = f"""
 Photorealistic commercial beauty photograph.
 

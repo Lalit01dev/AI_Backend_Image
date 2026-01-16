@@ -17,7 +17,7 @@ class TTSScriptGenerator:
     """
 
     def __init__(self):
-        print("🔊 TTS Script Generator initialized (ElevenLabs mode)")
+        print("TTS Script Generator initialized (ElevenLabs mode)")
 
     def generate_narration(
         self,
@@ -73,9 +73,8 @@ class TTSScriptGenerator:
         # Pick 2 lines → short, ad-friendly
         selected = random.sample(lines, k=2)
 
-        # --------------------------------------------------
-        # 🎯 Duration-safe narration (prevents voice overlap)
-        # --------------------------------------------------
+        #  Duration-safe narration (prevents voice overlap)
+        
         words_per_sec = 2.2  # natural speaking rate
         max_words = int(duration_seconds * words_per_sec)
 
@@ -90,5 +89,5 @@ class TTSScriptGenerator:
 
 
 
-# Singleton
+
 tts_script_generator = TTSScriptGenerator()

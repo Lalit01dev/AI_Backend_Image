@@ -13,7 +13,7 @@ from typing import Optional
 
 class BeautyPromptGenerator:
     def __init__(self):
-        print("💅 Beauty Prompt Generator (Nano + VEO Safe Wrapper) Loaded")
+        print(" Beauty Prompt Generator (Nano + VEO Safe Wrapper) Loaded")
 
     def generate_scene_prompt(
         self,
@@ -24,12 +24,12 @@ class BeautyPromptGenerator:
         aspect_ratio: str = "16:9",
     ) -> str:
 
-        # Your original prompt (exactly as written in campaign.py)
+       
         original_prompt = scene_data.get("prompt", "").strip()
 
-        # ============================
-        # Aspect ratio wording (short)
-        # ============================
+       
+        # Aspect ratio wording 
+        
         ar_map = {
             "16:9": "16:9 landscape",
             "9:16": "9:16 vertical",
@@ -37,10 +37,10 @@ class BeautyPromptGenerator:
         }
         ar_str = ar_map.get(aspect_ratio, "16:9 landscape")
 
-        # ============================
+       
         # Compact Nano/VEO Safety Add-On
-        # (Does NOT overwrite your prompt)
-        # ============================
+        
+       
         safety_block = (
             "Photorealistic commercial image. Keep face fully visible and sharp. "
             "No hands blocking face, no distortions, no mirrors, no extra people. "
@@ -49,9 +49,9 @@ class BeautyPromptGenerator:
             "Real human skin texture, real hair strands, no beauty filters."
         )
 
-        # ===========================================
+        
         # Combine ORIGINAL prompt + compact safe block
-        # ===========================================
+       
         final_prompt = f"{original_prompt}\n\n{safety_block}"
 
         return final_prompt.strip()

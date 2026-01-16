@@ -7,22 +7,21 @@ class Campaign(Base):
     __tablename__ = "campaigns"
     
     id = Column(String, primary_key=True)
-    user_id = Column(String, nullable=True)  # No auth for now
+    user_id = Column(String, nullable=True)  
     
     # Input data
-    product_image_url = Column(String, nullable=True)  # ✅ CHANGED: nullable=True (for beauty campaigns without products)
+    product_image_url = Column(String, nullable=True) 
     character_image_url = Column(String, nullable=True)
     user_prompt = Column(Text, nullable=False)
     num_scenes = Column(Integer, default=4)
-    product_type = Column(String, default="default")  # default, beauty, sunglasses, watch, etc.
+    product_type = Column(String, default="default")  
     
     # Generated data
     campaign_theme = Column(String, nullable=True)
-    scene_scripts = Column(JSON, nullable=True)  # Array of scene descriptions
+    scene_scripts = Column(JSON, nullable=True)  
     
     # Status tracking
-    status = Column(String, default="pending")  # pending, scripts_generated, character_generated, images_generated, images_partial, videos_generated, completed, failed
-    
+    status = Column(String, default="pending")  
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -37,26 +36,26 @@ class CampaignScene(Base):
     
     # Scene data
     scene_title = Column(String, nullable=True)
-    visual_prompt = Column(Text, nullable=True)  # For Midjourney
+    visual_prompt = Column(Text, nullable=True)  
     camera_movement = Column(String, nullable=True)
     lighting = Column(String, nullable=True)
     
     # Generated images
-    generated_images = Column(JSON, nullable=True)  # Array of S3 URLs (4 images per scene)
-    selected_image_url = Column(String, nullable=True)  # User's choice (1 selected from 4)
+    generated_images = Column(JSON, nullable=True)  
+    selected_image_url = Column(String, nullable=True)  
     
     # Video data
-    video_prompt = Column(Text, nullable=True)  # For Runway
-    video_duration = Column(Integer, default=5)  # seconds
-    video_url = Column(String, nullable=True)  # Final video S3 URL
-    runway_task_id = Column(String, nullable=True)  # Runway job ID for polling
+    video_prompt = Column(Text, nullable=True)  
+    video_duration = Column(Integer, default=5)  
+    video_url = Column(String, nullable=True)  
+    runway_task_id = Column(String, nullable=True)  
     
     # Captions
     caption_text = Column(String, nullable=True)
-    hashtags = Column(JSON, nullable=True)  # Array of hashtags
+    hashtags = Column(JSON, nullable=True)  
     
     # Status
-    status = Column(String, default="pending")  # pending, images_generated, image_selected, video_generated, failed
+    status = Column(String, default="pending")  
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -70,14 +69,14 @@ class CampaignOutput(Base):
     campaign_id = Column(String, nullable=False)
     
     # Individual scene videos
-    scene_video_urls = Column(JSON, nullable=True)  # Array of URLs
+    scene_video_urls = Column(JSON, nullable=True)  
     
     # Merged final ad
     final_ad_url = Column(String, nullable=True)
     final_ad_duration = Column(Integer, nullable=True)
     
     # Status
-    status = Column(String, default="pending")  # pending, processing, completed, failed
+    status = Column(String, default="pending")  
     
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -1,9 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
-from datetime import datetime
 
-
-# ==================== REQUEST SCHEMAS ====================
 
 
 class CampaignCreateRequest(BaseModel):
@@ -26,20 +23,17 @@ class CampaignCreateRequest(BaseModel):
         }
 
 
-# ==================== RESPONSE SCHEMAS ====================
-
-
 class SceneScript(BaseModel):
     """Individual scene description"""
     scene_number: int
     title: str
-    visual_prompt: str  # For Midjourney
+    visual_prompt: str  
     camera_movement: str
     lighting: str
     background: str
     caption_text: str
     hashtags: List[str]
-    duration: int = 5  # Default 5 seconds
+    duration: int = 5  
     
     class Config:
         json_schema_extra = {
@@ -56,155 +50,3 @@ class SceneScript(BaseModel):
             }
         }
 
-
-class CampaignScriptResponse(BaseModel):
-    """Complete campaign script with all scenes"""
-    status: str
-    campaign_id: str
-    campaign_theme: str
-    color_palette: List[str]
-    scenes: List[SceneScript]
-    estimated_duration: int  # Total seconds
-    message: str
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "status": "scripts_generated",
-                "campaign_id": "camp_abc123",
-                "campaign_theme": "Golden Hour Indulgence",
-                "color_palette": ["#FFD700", "#FFA500", "#FFFFFF"],
-                "scenes": [],
-                "estimated_duration": 20,
-                "message": "Campaign scripts generated successfully"
-            }
-        }
-
-
-# ==================== PHASE 2: IMAGE GENERATION ====================
-
-
-class ImageGenerationRequest(BaseModel):
-    """Request to generate images for a campaign - always generates 4 images per scene"""
-    campaign_id: str = Field(..., description="Campaign ID from Phase 1")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "campaign_id": "camp_abc123"
-            }
-        }
-
-
-class SceneImageResponse(BaseModel):
-    """Response for a single scene's generated images"""
-    scene_number: int
-    scene_title: str
-    generated_images: List[str]  # S3 URLs (always 4 images)
-    status: str
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "scene_number": 1,
-                "scene_title": "Hero Close-up Shot",
-                "generated_images": [
-                    "https://ai-images-2.s3.amazonaws.com/scene1_option1.png",
-                    "https://ai-images-2.s3.amazonaws.com/scene1_option2.png",
-                    "https://ai-images-2.s3.amazonaws.com/scene1_option3.png",
-                    "https://ai-images-2.s3.amazonaws.com/scene1_option4.png"
-                ],
-                "status": "completed"
-            }
-        }
-
-
-class ImageGenerationResponse(BaseModel):
-    """Response after generating all scene images"""
-    status: str
-    campaign_id: str
-    scenes: List[SceneImageResponse]
-    total_images: int
-    message: str
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "status": "images_generated",
-                "campaign_id": "camp_abc123",
-                "scenes": [],
-                "total_images": 16,
-                "message": "All scene images generated successfully"
-            }
-        }
-
-
-class ImageSelectionRequest(BaseModel):
-    """Request to select image for video generation"""
-    campaign_id: str
-    scene_number: int
-    selected_image_url: str
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "campaign_id": "camp_abc123",
-                "scene_number": 1,
-                "selected_image_url": "https://ai-images-2.s3.amazonaws.com/scene1_option2.png"
-            }
-        }
-
-
-# ==================== PHASE 3: VIDEO GENERATION ====================
-
-
-class VideoGenerationRequest(BaseModel):
-    """Request to generate videos for a campaign"""
-    campaign_id: str = Field(..., description="Campaign ID from Phase 2")
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "campaign_id": "camp_abc123"
-            }
-        }
-
-
-class SceneVideoResponse(BaseModel):
-    """Response for a single scene's generated video"""
-    scene_number: int
-    scene_title: str
-    video_prompt: str
-    video_url: Optional[str] = None
-    status: str
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "scene_number": 1,
-                "scene_title": "Hero Shot",
-                "video_prompt": "Camera slowly zooms in, man smiles...",
-                "video_url": "https://ai-images-2.s3.amazonaws.com/campaigns/camp_xxx/scene_1_video.mp4",
-                "status": "completed"
-            }
-        }
-
-
-class VideoGenerationResponse(BaseModel):
-    """Response after generating all scene videos"""
-    status: str
-    campaign_id: str
-    scenes: List[SceneVideoResponse]
-    total_videos: int
-    message: str
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "status": "videos_generated",
-                "campaign_id": "camp_abc123",
-                "scenes": [],
-                "total_videos": 4,
-                "message": "All scene videos generated successfully"
-            }
-        }

@@ -22,13 +22,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
-# Try to import the Google genai client. If it's not installed, we'll gracefully fallback.
 try:
     from google import genai
     GENAI_AVAILABLE = True
 except Exception:
-    genai = None  # type: ignore
+    genai = None 
     GENAI_AVAILABLE = False
 
 
@@ -41,12 +39,12 @@ class ScriptGenerator:
     """
 
     def __init__(self):
-        self.model = "gemini-2.0-flash"  # recommended low-cost Gemini model for text
+        self.model = "gemini-2.0-flash"  
         self.api_key = os.getenv("GEMINI_API_KEY")
         if GENAI_AVAILABLE and not self.api_key:
             raise Exception("GEMINI_API_KEY environment variable is required for Gemini generation")
 
-        # If genai is available, create a client instance lazily
+        
         self.client = None
         if GENAI_AVAILABLE:
             self.client = genai.Client(api_key=self.api_key)
@@ -54,11 +52,11 @@ class ScriptGenerator:
         # Motion style A: cinematic smooth subtle motion
         self.motion_style = "Smooth subtle cinematic push-in / slight parallax, stable framing, gentle natural motion."
 
-        print("🤖 Hybrid ScriptGenerator initialized (Gemini preferred)")
+        print(" Hybrid ScriptGenerator initialized (Gemini preferred)")
 
-    # -------------------------
+    
     # Public API
-    # -------------------------
+    
     async def generate_campaign_script(
         self,
         product_description: str,
@@ -78,7 +76,7 @@ class ScriptGenerator:
 
         # Build base result
         campaign_theme = f"{business_type.title()} Campaign"
-        color_palette = ["#F5E6E8", "#D8C4B6", "#A89F8E"]  # tasteful defaults; UI may override
+        color_palette = ["#F5E6E8", "#D8C4B6", "#A89F8E"]  
 
         # Templates for first 3 scenes (very stable)
         template_scenes = self._get_template_scenes(business_type)
@@ -232,9 +230,9 @@ class ScriptGenerator:
             }
         ]
 
-    # -------------------------
+  
     # Gemini generation for extra scenes
-    # -------------------------
+   
     async def _generate_additional_scenes_via_gemini(
         self,
         product_description: str,
@@ -262,14 +260,13 @@ class ScriptGenerator:
             f"Return exactly {num_scenes} JSON objects as an array. Each object must include: title, description, action, setting, mood, camera_movement (short)."
         )
 
-        # If genai client is available, call Gemini; otherwise fallback
+        
         if GENAI_AVAILABLE and self.client:
             try:
-                # Many genai python SDKs expose a responses/text generation method; attempt a generic call.
-                # Implementation may need small adjustments to match the exact genai sdk in your environment.
+                
                 prompt = system_instructions + "\n\n" + user_instructions
 
-                # deploy a simple, robust call with a short timeout; non-blocking wrapper
+               
                 gen_response = await asyncio.to_thread(
                     lambda: self.client.generate_text(
                         model=self.model,
@@ -280,12 +277,12 @@ class ScriptGenerator:
 
                 raw_text = getattr(gen_response, "text", None) or str(gen_response)
 
-                # Heuristic: try to parse JSON from response; support responses that already output JSON
+               
                 parsed = None
                 try:
                     parsed = json.loads(raw_text)
                 except Exception:
-                    # attempt to find JSON substring
+                    
                     start = raw_text.find("[")
                     end = raw_text.rfind("]")
                     if start != -1 and end != -1:
@@ -296,7 +293,7 @@ class ScriptGenerator:
                             parsed = None
 
                 if isinstance(parsed, list) and len(parsed) > 0:
-                    # normalize into expected scene dicts
+                    
                     out_scenes = []
                     base_number = 4
                     for i, item in enumerate(parsed[:num_scenes]):
@@ -318,11 +315,11 @@ class ScriptGenerator:
 
                     return out_scenes
 
-                # If parsing failed, fall through to fallback
-                print("⚠️ Gemini response could not be parsed as JSON; using fallback scenes")
+                
+                print("Gemini response could not be parsed as JSON; using fallback scenes")
 
             except Exception as e:
-                print("⚠️ Gemini scene generation failed:", e)
+                print(" Gemini scene generation failed:", e)
 
         # Fallback simple auto-generated scenes (guaranteed safe)
         fallback = []
@@ -347,5 +344,5 @@ class ScriptGenerator:
         return fallback
 
 
-# Singleton
+
 script_generator = ScriptGenerator()
