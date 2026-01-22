@@ -35,7 +35,10 @@ class VEO3VideoGenerator:
 
     # =====================================================================
     # MAIN VIDEO GENERATION
-    # ===================================================================
+    # =====================================================================
+    
+    
+    
     async def generate_video_with_text(
         self,
         scene_image_url: str,
@@ -53,20 +56,26 @@ class VEO3VideoGenerator:
         resp = await asyncio.to_thread(requests.get, scene_image_url, timeout=30)
         resp.raise_for_status()
 
-        pil_img.save(buf, format="JPEG", quality=85, optimize=True)
+        pil_img = Image.open(BytesIO(resp.content)).convert("RGB")
+            # ✅ 2. SAFE RESIZE (AFTER load)
         MAX_SIZE = 1024
-
         width, height = pil_img.size
+
         if max(width, height) > MAX_SIZE:
             scale = MAX_SIZE / max(width, height)
             new_size = (int(width * scale), int(height * scale))
             pil_img = pil_img.resize(new_size)
+            buf = BytesIO()
+            pil_img.save(buf, format="JPEG")
+        
+         # ✅ 3. ENCODE JPEG (OPTIMIZED)
         buf = BytesIO()
-        pil_img.save(buf, format="JPEG")
+        pil_img.save(buf, format="JPEG", quality=85, optimize=True)
+        img_bytes = buf.getvalue()    
 
         image_part = Part(
             inline_data=Blob(
-                data=buf.getvalue(),
+                data=img_bytes,
                 mime_type="image/jpeg"
             )
         ).as_image()
@@ -108,7 +117,7 @@ class VEO3VideoGenerator:
             raise Exception("No videos generated")
 
         video_obj = videos[0].video
-        await asyncio.to_thread(self.client.files.download, file=video_obj, path=None)
+        await asyncio.to_thread(self.client.files.download, file=video_obj)
 
         tmp = tempfile.mktemp(suffix=".mp4")
         video_obj.save(tmp)
