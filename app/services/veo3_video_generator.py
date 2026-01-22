@@ -101,7 +101,7 @@ class VEO3VideoGenerator:
             raise Exception("No videos generated")
 
         video_obj = videos[0].video
-        await asyncio.to_thread(self.client.files.download, file=video_obj)
+        await asyncio.to_thread(self.client.files.download, file=video_obj, path=None)
 
         tmp = tempfile.mktemp(suffix=".mp4")
         video_obj.save(tmp)

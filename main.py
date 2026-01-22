@@ -1,3 +1,6 @@
+import sys
+import os
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import campaign
@@ -8,6 +11,20 @@ from app.database import Base, engine
 
 
 load_dotenv()
+
+# force line-buffered stdout for systemd + gunicorn
+sys.stdout = os.fdopen(sys.stdout.fileno(), 'w', buffering=1)
+
+def safe_print(*args):
+    for a in args:
+        if isinstance(a, (bytes, bytearray)):
+            print("[BINARY DATA OMITTED]")
+            return
+    print(*args)
+
+from fastapi import FastAPI
+# all other imports below
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
