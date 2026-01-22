@@ -35,7 +35,7 @@ class VEO3VideoGenerator:
 
     # =====================================================================
     # MAIN VIDEO GENERATION
-    # =====================================================================
+    # ===================================================================
     async def generate_video_with_text(
         self,
         scene_image_url: str,
@@ -53,7 +53,14 @@ class VEO3VideoGenerator:
         resp = await asyncio.to_thread(requests.get, scene_image_url, timeout=30)
         resp.raise_for_status()
 
-        pil_img = Image.open(BytesIO(resp.content)).convert("RGB")
+        pil_img.save(buf, format="JPEG", quality=85, optimize=True)
+        MAX_SIZE = 1024
+
+        width, height = pil_img.size
+        if max(width, height) > MAX_SIZE:
+            scale = MAX_SIZE / max(width, height)
+            new_size = (int(width * scale), int(height * scale))
+            pil_img = pil_img.resize(new_size)
         buf = BytesIO()
         pil_img.save(buf, format="JPEG")
 
