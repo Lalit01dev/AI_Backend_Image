@@ -358,33 +358,160 @@ def _run_video_generation(
 @router.post("/generate_campaign_videos/{campaign_id}")
 async def generate_campaign_videos(
     campaign_id: str,
-    background_tasks: BackgroundTasks,
     business_name: Optional[str] = None,
     phone_number: Optional[str] = None,
     website: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-    if not campaign:
-        raise HTTPException(404, "Campaign not found")
+    print("\n" + "=" * 80)
+    print(" VEO 3.1: GENERATING VIDEOS WITH TEXT")
+    print("=" * 80)
+    print(f"Campaign: {campaign_id}")
+    if business_name:
+        print(f"Business: {business_name}")
+    print("=" * 80)
 
-    campaign.status = "video_queued"
-    db.commit()
+    try:
+        # --------------------------------------------------
+        # 1. LOAD CAMPAIGN
+        # --------------------------------------------------
+        campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+        if not campaign:
+            raise HTTPException(404, "Campaign not found")
 
-    background_tasks.add_task(
-        _run_video_generation,
-        campaign_id,
-        business_name,
-        phone_number,
-        website,
-    )
+        if not campaign.character_image_url:
+            raise HTTPException(400, "No character reference found")
 
-    print(f" Video generation queued for campaign {campaign_id}")
+        campaign.status = "video_generating"
+        db.commit()
 
-    return {
-        "status": "video_generation_started",
-        "campaign_id": campaign_id,
-    }
+        # --------------------------------------------------
+        # 2. LOAD SCENES
+        # --------------------------------------------------
+        scenes = (
+            db.query(CampaignScene)
+            .filter(CampaignScene.campaign_id == campaign_id)
+            .order_by(CampaignScene.scene_number)
+            .all()
+        )
+
+        if not scenes:
+            raise HTTPException(400, "No scenes found")
+
+        scenes = [s for s in scenes if s.selected_image_url]
+        if not scenes:
+            raise HTTPException(400, "No selected images for video generation")
+
+        print(f" Found {len(scenes)} scenes")
+        print(f" Character reference: {campaign.character_image_url[:60]}...")
+
+        business_info = {
+            "name": business_name,
+            "phone": phone_number,
+            "website": website,
+        } if business_name else None
+
+        # --------------------------------------------------
+        # 3. GENERATE SCENE VIDEOS (INLINE)
+        # --------------------------------------------------
+        scene_video_urls = []
+        scene_voice_paths = []
+
+        for scene in scenes:
+            print(f"\n Generating Scene {scene.scene_number}")
+
+            role = {
+                1: "brand",
+                2: "service",
+                3: "reaction",
+                4: "cta",
+            }.get(scene.scene_number, "brand")
+
+            motion_prompt = VEO_MOTION_PRESETS.get(
+                role, VEO_MOTION_PRESETS["brand"]
+            )
+
+            text_overlays = {}
+            if role == "brand":
+                text_overlays = {
+                    "headline": f"Welcome to {business_name}",
+                    "subtext": f"{campaign.campaign_theme} Special",
+                }
+            elif role == "service":
+                text_overlays = {"subtext": "Professional Care"}
+            elif role == "cta":
+                text_overlays = {"cta": "Book Now"}
+
+            print(f" Scene role → {role}")
+            print(f" Motion prompt → {motion_prompt}")
+
+            video_url = await generate_video_with_retries(
+                veo3_video_generator,
+                scene_image_url=scene.selected_image_url,
+                motion_prompt=motion_prompt,
+                text_overlays=text_overlays,
+                campaign_id=campaign_id,
+                scene_number=scene.scene_number,
+                business_info=business_info,
+                product_type="beauty",
+                retries=2,
+                base_delay=6,
+            )
+
+            scene.video_url = video_url
+            scene.status = "video_completed"
+            db.commit()
+
+            narration_text = build_scene_narration(
+                {"text": text_overlays}, business_info
+            ) or ""
+
+            if narration_text:
+                voice_path = elevenlabs_tts_service.generate_voice(narration_text)
+                scene_voice_paths.append(voice_path)
+
+            scene_video_urls.append(video_url)
+            print(f" Scene {scene.scene_number} completed")
+
+        # --------------------------------------------------
+        # 4. MERGE FINAL VIDEO
+        # --------------------------------------------------
+        print("\n Creating final advertisement")
+
+        final_path = video_merger.process_full_pipeline(
+            scene_video_urls=scene_video_urls,
+            voice_paths=scene_voice_paths,
+            campaign_id=campaign_id,
+            output_name="final_ad.mp4",
+            background_music=None,
+        )
+
+        final_s3_url = upload_to_s3(final_path)
+
+        campaign.final_video_url = final_s3_url
+        campaign.status = "videos_generated"
+        db.commit()
+
+        print(" FINAL VIDEO READY:", final_s3_url)
+
+        # --------------------------------------------------
+        # 5. RETURN RESULT
+        # --------------------------------------------------
+        return {
+            "status": "completed",
+            "campaign_id": campaign_id,
+            "final_merged_video": final_s3_url,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print("\n ERROR:", str(e))
+        campaign.status = "video_failed"
+        campaign.generation_error = str(e)
+        db.commit()
+        raise HTTPException(500, f"Video generation failed: {str(e)}")
 
 
 
