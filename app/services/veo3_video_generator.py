@@ -54,8 +54,18 @@ class VEO3VideoGenerator:
         resp.raise_for_status()
 
         pil_img = Image.open(BytesIO(resp.content)).convert("RGB")
+
+        MAX_SIZE = 1024
+        w, h = pil_img.size
+        if max(w, h) > MAX_SIZE:
+            scale = MAX_SIZE / max(w, h)
+            pil_img = pil_img.resize(
+                (int(w * scale), int(h * scale)),
+                Image.LANCZOS
+            )
+
         buf = BytesIO()
-        pil_img.save(buf, format="JPEG")
+        pil_img.save(buf, format="JPEG", quality=85, optimize=True)
 
         image_part = Part(
             inline_data=Blob(
@@ -63,6 +73,7 @@ class VEO3VideoGenerator:
                 mime_type="image/jpeg"
             )
         ).as_image()
+
 
         final_prompt = self._build_veo_prompt(
             motion_prompt,
