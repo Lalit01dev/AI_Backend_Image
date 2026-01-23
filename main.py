@@ -1,3 +1,5 @@
+import sys
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes import campaign
@@ -8,6 +10,19 @@ from app.database import Base, engine
 
 
 load_dotenv()
+
+
+
+def safe_print(*args):
+    for a in args:
+        if isinstance(a, (bytes, bytearray)):
+            print("[BINARY DATA OMITTED]")
+            return
+    print(*args)
+
+from fastapi import FastAPI
+# all other imports below
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)

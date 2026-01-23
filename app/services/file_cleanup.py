@@ -3,6 +3,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 import threading
+import logging
 
 class FileCleanupService:
     """Auto-delete temporary files after specified days using built-in libraries"""
@@ -30,7 +31,7 @@ class FileCleanupService:
                 try:
                     self.cleanup_old_files()
                 except Exception as e:
-                    print(f"    Cleanup error: {e}")
+                    logging.exception("Cleanup error")
                 
                 # Wait 6 hours (21600 seconds)
                 time.sleep(21600)

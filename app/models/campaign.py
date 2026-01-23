@@ -20,6 +20,10 @@ class Campaign(Base):
     campaign_theme = Column(String, nullable=True)
     scene_scripts = Column(JSON, nullable=True)  
     
+    # Video output
+    final_video_url = Column(String, nullable=True)
+    generation_error = Column(Text, nullable=True)
+    
     # Status tracking
     status = Column(String, default="pending")  
     # Timestamps
