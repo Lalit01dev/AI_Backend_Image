@@ -4,6 +4,7 @@ python-multipart
 openai
 httpx
 requests
+aiohttp
 boto3
 ffmpeg-python
 pillow

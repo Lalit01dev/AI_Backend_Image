@@ -44,7 +44,7 @@ class SceneScript(BaseModel):
                 "camera_movement": "Slow push-in zoom",
                 "lighting": "Warm golden hour, soft backlight",
                 "background": "Blurred outdoor cafe setting",
-                "caption_text": "Pure Indulgence Begins Here ✨",
+                "caption_text": "Pure Indulgence Begins Here ",
                 "hashtags": ["#IceCreamLovers", "#GoldenHour", "#DessertGoals"],
                 "duration": 5
             }

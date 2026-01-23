@@ -81,7 +81,7 @@ FastAPI Backend (Gunicorn + systemd)
 ---
 
 
-## 🔐 Environment Variables
+##  Environment Variables
 
 Create a `.env` file:
 
@@ -105,9 +105,9 @@ PORT=8001
 
 ---
 
-## 🛠️ Project Setup & Installation
+##  Project Setup & Installation
 
-### 1️⃣ Clone the Repository
+### 1️ Clone the Repository
 
 ```bash
 git clone <your-repo-url>
@@ -116,7 +116,7 @@ cd AI-Ads_Generation
 
 ---
 
-### 2️⃣ Create Virtual Environment
+### 2️ Create Virtual Environment
 
 ```bash
 python -m venv venv
@@ -126,7 +126,7 @@ venv\Scripts\activate      # Windows
 
 ---
 
-### 3️⃣ Install Dependencies
+### 3️ Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -134,7 +134,7 @@ pip install -r requirements.txt
 
 ---
 
-### 4️⃣ Environment Variables
+### 4️ Environment Variables
 
 Create a `.env` file in the project root:
 
@@ -158,7 +158,7 @@ PORT=8001
 
 ---
 
-## ▶️ Running the Backend
+##  Running the Backend
 
 ### Development Mode
 
@@ -180,7 +180,7 @@ gunicorn main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001
 
 ---
 
-## 📊 API Documentation (Swagger / OpenAPI)
+##  API Documentation (Swagger / OpenAPI)
 
 FastAPI automatically exposes interactive API docs.
 
@@ -202,11 +202,11 @@ http://<server-ip>:8001/redoc
 http://<server-ip>:8001/openapi.json
 ```
 
-> ✅ Swagger is tested and stable on **port 8001**
+>  Swagger is tested and stable on **port 8001**
 
 ---
 
-## 🧪 Health Check
+##  Health Check
 
 ```http
 GET /health
@@ -220,9 +220,9 @@ Response:
 
 ---
 
-## 🚀 Deployment
+##  Deployment
 
-## 🧪 Health Check
+##  Health Check
 
 ```http
 GET /health
@@ -237,7 +237,7 @@ Response:
 ---
 
 
-## 📄 License
+##  License
 
 Private / Proprietary (update as needed)
 

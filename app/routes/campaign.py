@@ -219,7 +219,7 @@ async def generate_campaign_videos(
     """
     
     print("\n" + "="*80)
-    print(f"🎬 VEO 3.1: GENERATING VIDEOS WITH TEXT")
+    print(f" VEO 3.1: GENERATING VIDEOS WITH TEXT")
     print("="*80)
     print(f"Campaign: {campaign_id}")
     if business_name:

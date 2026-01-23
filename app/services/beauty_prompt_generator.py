@@ -1,13 +1,3 @@
-"""
-beauty_prompt_generator.py
-
-Option A + Format 1 (Compact)
-- Does NOT overwrite or replace your scene prompt.
-- Only adds a short Nano Banana + VEO-safety wrapper.
-- Ensures character face visibility, realism, and stable framing.
-- Keeps your business_type, theme, outfit, camera-angle EXACT as defined in campaign.py.
-"""
-
 from typing import Optional
 
 
