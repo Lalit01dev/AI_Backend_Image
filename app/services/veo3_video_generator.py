@@ -86,13 +86,13 @@ class VEO3VideoGenerator:
 
         print(f" Corrected S3 Key: {s3_key}")
 
-        # 🔥 KEY CHANGE: load bytes, not URL
+        #  KEY CHANGE: load bytes, not URL
         image_bytes = self._get_image_bytes_from_s3(s3_key)
 
         reference_image = types.VideoGenerationReferenceImage(
             image=types.Image(
             image_bytes=image_bytes,
-            mime_type="image/jpeg"  # Must match the format used in PIL save
+            mime_type="image/jpeg"  
         ),
         reference_type="asset",
         )
