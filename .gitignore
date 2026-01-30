@@ -8,6 +8,7 @@ ENV/
 .env.local
 .streamlit/secrets.toml
 
+
 # Python
 __pycache__/
 *.py[cod]
@@ -32,6 +33,7 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
 
 
 

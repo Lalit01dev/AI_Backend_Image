@@ -19,5 +19,8 @@ psycopg2-binar
 google-generativeai>=0.8.0
 google-cloud-aiplatform>=1.40.0
 google-auth>=2.25.0
-                        
+
+celery
+redis
+
                         

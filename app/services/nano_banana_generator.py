@@ -122,6 +122,9 @@ class NanoBananaGenerator:
                                                
                                                ),
         )
+        if not response or not getattr(response, "parts", None):
+          raise RuntimeError(f"Nano Banana returned no image parts for character")
+
 
         img = None
         for p in response.parts:
@@ -218,37 +221,35 @@ class NanoBananaGenerator:
             contents.append(outfit_img)
 
         response = await asyncio.to_thread(
-            self.client.models.generate_content,
-            model=self.model_name,
-            contents=contents,
-            config=types.GenerateContentConfig(response_modalities=["image"],
-            image_config=types.ImageConfig(
-            aspect_ratio="16:9" 
+        self.client.models.generate_content,
+        model=self.model_name,
+        contents=contents,   # ✅ USE THE BUILT CONTENTS
+        config=types.GenerateContentConfig(
+            response_modalities=["image"],
+            image_config=types.ImageConfig(aspect_ratio="16:9"),
+        ),
         )
-    ),
-)
-        # --------------------------------------------------
-        # 4. Extract image
-        # --------------------------------------------------
+
+        if not response or not getattr(response, "parts", None):
+            raise RuntimeError(
+                "Nano Banana returned no image parts for scene {scene_number}"
+            )
+
         img = None
-        for part in response.parts:
-            if getattr(part, "inline_data", None):
-                img = self._to_pil(part)
+        for p in response.parts:
+            if getattr(p, "inline_data", None):
+                img = self._to_pil(p)
                 break
 
         if img is None:
-            raise Exception("Scene image missing from Gemini response")
+            raise RuntimeError("Character image generation failed (no inline image)")
 
-        # --------------------------------------------------
-        # 5. Upload
-        # --------------------------------------------------
         return await self._upload(
             campaign_id,
-            f"scene_{scene_number}_image",
+            f"scene_{scene_number}",
             img,
-            folder=product_type,
+            folder=product_type  # "beauty"
         )
 
 
-# Singleton
 nano_banana_generator = NanoBananaGenerator()

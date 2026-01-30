@@ -32,7 +32,7 @@ class VEO3VideoGenerator:
             config=Config(signature_version="s3v4"),
         )
 
-        print("🎬 VEO 3.1 Generator Loaded — RAW IMAGE BYTES MODE")
+        print(" VEO 3.1 Generator Loaded — RAW IMAGE BYTES MODE")
 
     # ------------------------------------------------------------------
     # IMAGE LOADER — S3 → JPEG BYTES (VEO SAFE)
@@ -71,7 +71,7 @@ class VEO3VideoGenerator:
         product_type: str = "beauty",
     ) -> str:
 
-        print(f"\n🎬 Generating Scene {scene_number}")
+        print(f"\n Generating Scene {scene_number}")
 
         # Accept both full URL or key
         if scene_image_url.startswith("http"):
@@ -84,9 +84,9 @@ class VEO3VideoGenerator:
         else:
             s3_key = scene_image_url
 
-        print(f"🎯 Corrected S3 Key: {s3_key}")
+        print(f" Corrected S3 Key: {s3_key}")
 
-        # 🔥 KEY CHANGE: load bytes, not URL
+        #  KEY CHANGE: load bytes, not URL
         image_bytes = self._get_image_bytes_from_s3(s3_key)
 
         reference_image = types.VideoGenerationReferenceImage(
@@ -113,7 +113,7 @@ class VEO3VideoGenerator:
             ),
         )
 
-        print("⏳ Operation started:", getattr(operation, "name", "N/A"))
+        print(" Operation started:", getattr(operation, "name", "N/A"))
 
         start = time.time()
         while not operation.done:
@@ -129,8 +129,16 @@ class VEO3VideoGenerator:
         if getattr(operation, "error", None):
             raise Exception(f"VEO Error: {operation.error}")
 
-        videos = operation.response.generated_videos
+        # Better error handling for empty responses
+        if not hasattr(operation, "response") or not operation.response:
+            print(f"  Operation response is missing. Operation state: {getattr(operation, 'done', 'unknown')}")
+            print(f"  Operation name: {getattr(operation, 'name', 'N/A')}")
+            raise Exception("No videos generated - operation response is missing")
+
+        videos = getattr(operation.response, "generated_videos", None)
         if not videos:
+            print(f"  No videos in response. Response type: {type(operation.response)}")
+            print(f"  Response attributes: {dir(operation.response) if hasattr(operation.response, '__dict__') else 'N/A'}")
             raise Exception("No videos generated")
 
         video_obj = videos[0].video
@@ -143,7 +151,7 @@ class VEO3VideoGenerator:
             video_bytes, campaign_id, scene_number, product_type
         )
 
-        print("✅ VIDEO READY →", url)
+        print(" VIDEO READY →", url)
         return url
 
     # ------------------------------------------------------------------
